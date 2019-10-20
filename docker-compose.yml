@@ -1,0 +1,104 @@
+version: "3.1"
+
+services:
+
+  ######## Nginx ########################################################
+  nginx:
+    image: nginx:alpine
+    working_dir: /application
+    volumes:
+      - .:/application
+      - ./nginx/log/:/var/log/nginx
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+      - "81:81"
+      - "82:82"
+    depends_on:
+      - php-fpm
+    restart: always
+
+  ######## PHP-FPM ########################################################
+  php-fpm:
+    build:
+      context: ./php-fpm
+    working_dir: /application
+    volumes:
+      - .:/application
+      - ./php-fpm/php7.2.ini:/usr/local/etc/php/php.ini
+    expose:
+      - "9000"
+    extra_hosts:
+      - "localhost:127.0.0.1"
+    restart: always
+
+  ######## MySQL ########################################################
+  mysql:
+    image: mysql:5.7
+    working_dir: /application
+    ports:
+      - "3306:3306"
+    volumes:
+      - .:/application
+    environment:
+      - MYSQL_DATABASE=test
+      - MYSQL_USER=dev
+      - MYSQL_PASSWORD=123456
+      - MYSQL_ROOT_PASSWORD=123456
+    restart: always
+
+  ######## PHPMyAdmin 127.0.0.1:3307 ########################################################
+  phpmyadmin:
+    build: ./phpmyadmin
+    environment:
+      - PMA_ARBITRARY=1
+      - MYSQL_USER=dev
+      - MYSQL_PASSWORD=123456
+      - MYSQL_ROOT_PASSWORD=123456
+    ports:
+      - "3307:80"
+    depends_on:
+      - mysql
+
+  ######## Redis ########################################################
+  redis:
+    build: ./redis
+    ports:
+      - "6379:6379"
+
+  ######## Redis Cluster ########################################################
+  redis-cluster:
+    build: ./redis-cluster
+    ports:
+      - "7000-7005:7000-7005"
+
+  ######## Redis Web Ui 127.0.0.1:9987 ########################################################
+  redis-webui:
+    build:
+      context: ./redis-webui
+    environment:
+      - ADMIN_USER=dev
+      - ADMIN_PASS=123456
+      - REDIS_1_HOST=redis
+      - REDIS_1_PORT=6379
+    ports:
+      - "9987:80"
+    depends_on:
+      - redis
+
+#  ######## RabbitMQ ########################################################
+#  rabbitmq:
+#    build: ./rabbitmq
+#    ports:
+#      - "5672:5672"
+#      - "15672:15672"
+#      - "15672:15671"
+#    privileged: true
+#    environment:
+#      - RABBITMQ_DEFAULT_USER=dev
+#      - RABBITMQ_DEFAULT_PASS=123456
+#    hostname: rabbitmq
+#    volumes:
+#      - ~/.docker/data/rabbitmq:/var/lib/rabbitmq
+#    depends_on:
+#      - php-fpm
